@@ -120,15 +120,21 @@ export class BalboaSpaAccessory {
     /**
      * The spa is a heating-only device.
      *
-     * HomeKit:
-     * 0 = Off
-     * 1 = Heat
-     * 2 = Cool
+     * Restrict HomeKit to Heat only so the spa is not presented
+     * as having Off, Cool, or Auto operating modes.
      */
-    this.thermostatService
-      .getCharacteristic(
+    const targetHeatingCoolingState =
+      this.thermostatService.getCharacteristic(
         this.platform.Characteristic.TargetHeatingCoolingState,
-      )
+      );
+
+    targetHeatingCoolingState.setProps({
+      validValues: [
+        this.platform.Characteristic.TargetHeatingCoolingState.HEAT,
+      ],
+    });
+
+    targetHeatingCoolingState
       .onGet(() =>
         this.platform.Characteristic.TargetHeatingCoolingState.HEAT,
       )
