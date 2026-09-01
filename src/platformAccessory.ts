@@ -77,13 +77,13 @@ export class BalboaSpaAccessory {
       this.accessory.getService(this.platform.Service.Thermostat)
       || this.accessory.addService(
         this.platform.Service.Thermostat,
-        'Hot Tub',
+        'Temperature',
       );
 
     this.thermostatService
       .setCharacteristic(
         this.platform.Characteristic.Name,
-        'Hot Tub',
+        'Temperature',
       );
 
     /**
@@ -98,10 +98,18 @@ export class BalboaSpaAccessory {
     /**
      * Target water temperature.
      */
-    this.thermostatService
-      .getCharacteristic(
+    const targetTemperatureCharacteristic =
+      this.thermostatService.getCharacteristic(
         this.platform.Characteristic.TargetTemperature,
-      )
+      );
+
+    targetTemperatureCharacteristic.setProps({
+      minValue: 10,
+      maxValue: 40,
+      minStep: 0.5,
+    });
+
+    targetTemperatureCharacteristic
       .onGet(() => this.state.targetTemperature)
       .onSet(this.setTargetTemperature.bind(this));
 
@@ -153,6 +161,12 @@ export class BalboaSpaAccessory {
       );
 
     this.jetsService
+      .setCharacteristic(
+        this.platform.Characteristic.Name,
+        'Jets',
+      );
+
+    this.jetsService
       .getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.state.jets)
       .onSet(this.setJets.bind(this));
@@ -166,6 +180,12 @@ export class BalboaSpaAccessory {
         this.platform.Service.Switch,
         'Light',
         'light',
+      );
+
+    this.lightService
+      .setCharacteristic(
+        this.platform.Characteristic.Name,
+        'Light',
       );
 
     this.lightService
