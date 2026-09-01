@@ -1,148 +1,230 @@
-import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
+import type {
+  CharacteristicValue,
+  PlatformAccessory,
+  Service,
+} from 'homebridge';
 
-import type { ExampleHomebridgePlatform } from './platform.js';
+import type { BalboaESP32Platform } from './platform.js';
 
 /**
- * Platform Accessory
- * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different service types.
+ * Represents the current state of the spa.
+ *
+ * These values are mocked for now. Later, they will be populated
+ * from the ESPHome native API.
  */
-export class ExamplePlatformAccessory {
-  private service: Service;
+interface SpaState {
+  currentTemperature: number;
+  targetTemperature: number;
+  heating: boolean;
+  jets: boolean;
+  light: boolean;
+}
+
+/**
+ * Balboa Spa Accessory
+ *
+ * Exposes one physical spa to HomeKit with:
+ *
+ * - Thermostat
+ * - Jets switch
+ * - Light switch
+ */
+export class BalboaSpaAccessory {
+
+  private readonly thermostatService: Service;
+  private readonly jetsService: Service;
+  private readonly lightService: Service;
 
   /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
+   * Mock spa state used during initial development.
+   *
+   * Later this state will be updated from ESPHome.
    */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
+  private readonly state: SpaState = {
+    currentTemperature: 37.5,
+    targetTemperature: 39.0,
+    heating: true,
+    jets: false,
+    light: false,
   };
 
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: BalboaESP32Platform,
     private readonly accessory: PlatformAccessory,
   ) {
-    // set accessory information
+
+    /**
+     * Information shown for the accessory in HomeKit.
+     */
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
-
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
-    // you can create multiple services for each accessory
-
-    if (accessory.context.device.CustomService) {
-      // This is only required when using Custom Services and Characteristics not support by HomeKit
-      this.service = this.accessory.getService(this.platform.CustomServices[accessory.context.device.CustomService]) ||
-        this.accessory.addService(this.platform.CustomServices[accessory.context.device.CustomService]);
-    } else {
-      this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
-    }
-
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
-
-    // each service must implement at-minimum the "required characteristics" for the given service type
-    // see https://developers.homebridge.io/#/service/Lightbulb
-
-    // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this)) // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this)); // GET - bind to the `getOn` method below
-
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this)); // SET - bind to the `setBrightness` method below
+      .setCharacteristic(
+        this.platform.Characteristic.Manufacturer,
+        'Balboa Water Group',
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.Model,
+        'ESP32 / ESPHome Spa Interface',
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.SerialNumber,
+        'BALBOA-ESP32',
+      );
 
     /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same subtype id.)
+     * THERMOSTAT
      */
+    this.thermostatService =
+      this.accessory.getService(this.platform.Service.Thermostat)
+      || this.accessory.addService(
+        this.platform.Service.Thermostat,
+        'Hot Tub',
+      );
 
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
+    this.thermostatService
+      .setCharacteristic(
+        this.platform.Characteristic.Name,
+        'Hot Tub',
+      );
 
     /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
+     * Current water temperature.
      */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
+    this.thermostatService
+      .getCharacteristic(
+        this.platform.Characteristic.CurrentTemperature,
+      )
+      .onGet(() => this.state.currentTemperature);
 
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
+    /**
+     * Target water temperature.
+     */
+    this.thermostatService
+      .getCharacteristic(
+        this.platform.Characteristic.TargetTemperature,
+      )
+      .onGet(() => this.state.targetTemperature)
+      .onSet(this.setTargetTemperature.bind(this));
 
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
+    /**
+     * The spa is a heating-only device.
+     *
+     * HomeKit:
+     * 0 = Off
+     * 1 = Heat
+     * 2 = Cool
+     */
+    this.thermostatService
+      .getCharacteristic(
+        this.platform.Characteristic.TargetHeatingCoolingState,
+      )
+      .onGet(() =>
+        this.platform.Characteristic.TargetHeatingCoolingState.HEAT,
+      )
+      .onSet(async () => {
+        // The Balboa spa is always treated as heat-only.
+      });
+
+    /**
+     * Report whether the heater is actually running.
+     */
+    this.thermostatService
+      .getCharacteristic(
+        this.platform.Characteristic.CurrentHeatingCoolingState,
+      )
+      .onGet(() => {
+        if (this.state.heating) {
+          return this.platform.Characteristic
+            .CurrentHeatingCoolingState.HEAT;
+        }
+
+        return this.platform.Characteristic
+          .CurrentHeatingCoolingState.OFF;
+      });
+
+    /**
+     * JETS
+     */
+    this.jetsService =
+      this.accessory.getService('Jets')
+      || this.accessory.addService(
+        this.platform.Service.Switch,
+        'Jets',
+        'jets',
+      );
+
+    this.jetsService
+      .getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.state.jets)
+      .onSet(this.setJets.bind(this));
+
+    /**
+     * LIGHT
+     */
+    this.lightService =
+      this.accessory.getService('Light')
+      || this.accessory.addService(
+        this.platform.Service.Switch,
+        'Light',
+        'light',
+      );
+
+    this.lightService
+      .getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.state.light)
+      .onSet(this.setLight.bind(this));
+
+    this.platform.log.info('Hot Tub accessory initialized');
   }
 
   /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
-
-    this.platform.log.debug('Set Characteristic On ->', value);
-  }
-
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
+   * Handle a target-temperature change from HomeKit.
    *
-   * GET requests should return as fast as possible. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-   * In this case, you may decide not to implement `onGet` handlers, which may speed up
-   * the responsiveness of your device in the Home app.
-
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
+   * Eventually this will compare the requested temperature with the
+   * ESPHome-reported set temperature and send Warm/Cool commands.
    */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
+  async setTargetTemperature(value: CharacteristicValue) {
 
-    this.platform.log.debug('Get Characteristic On ->', isOn);
+    const temperature = value as number;
 
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    this.state.targetTemperature = temperature;
 
-    return isOn;
+    this.platform.log.info(
+      'Target temperature set to:',
+      temperature,
+    );
   }
 
   /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
+   * Handle Jets commands from HomeKit.
+   *
+   * Eventually this will trigger the ESPHome spa_pumps button.
    */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
+  async setJets(value: CharacteristicValue) {
 
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    const on = value as boolean;
+
+    this.state.jets = on;
+
+    this.platform.log.info(
+      'Jets set to:',
+      on ? 'ON' : 'OFF',
+    );
+  }
+
+  /**
+   * Handle Light commands from HomeKit.
+   *
+   * Eventually this will trigger the ESPHome spa_lights button.
+   */
+  async setLight(value: CharacteristicValue) {
+
+    const on = value as boolean;
+
+    this.state.light = on;
+
+    this.platform.log.info(
+      'Light set to:',
+      on ? 'ON' : 'OFF',
+    );
   }
 }
