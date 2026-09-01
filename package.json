@@ -1,23 +1,29 @@
 {
-  "name": "homebridge-plugin-name",
-  "displayName": "Plugin Name",
+  "name": "homebridge-balboa-esp32",
+  "displayName": "Balboa ESP32",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "A short description about what your plugin does.",
-  "author": "Your Name",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/USERNAME/GITHUB_PROJECT_NAME#readme",
+  "description": "Homebridge plugin for older Balboa hot tub controllers, using an ESP32/ESPHome topside interface.",
+  "author": "Emil-Peter Sosnowski",
+  "license": "MIT",
+  "homepage": "https://github.com/sixer-fixer/homebridge-balboa-esp32#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/sixer-fixer/homebridge-balboa-esp32.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/sixer-fixer/homebridge-balboa-esp32/issues"
   },
   "keywords": [
     "homebridge-plugin",
-    "supports-hap"
+    "supports-hap",
+    "balboa",
+    "esp32",
+    "esphome",
+    "hot-tub",
+    "spa",
+    "homekit"
   ],
   "main": "dist/index.js",
   "engines": {
