@@ -84,6 +84,10 @@ export class BalboaSpaAccessory {
       .setCharacteristic(
         this.platform.Characteristic.Name,
         'Temperature',
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.ConfiguredName,
+        'Temperature',
       );
 
     /**
@@ -159,12 +163,16 @@ export class BalboaSpaAccessory {
         'Jets',
         'jets',
       );
-
+    
     this.jetsService
       .setCharacteristic(
         this.platform.Characteristic.Name,
         'Jets',
-      );
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.ConfiguredName,
+        'Jets',
+      );    
 
     this.jetsService
       .getCharacteristic(this.platform.Characteristic.On)
@@ -185,6 +193,10 @@ export class BalboaSpaAccessory {
     this.lightService
       .setCharacteristic(
         this.platform.Characteristic.Name,
+        'Light',
+      )
+      .setCharacteristic(
+        this.platform.Characteristic.ConfiguredName,
         'Light',
       );
 
