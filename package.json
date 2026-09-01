@@ -2,7 +2,7 @@
   "name": "homebridge-balboa-esp32",
   "displayName": "Balboa ESP32",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Homebridge plugin for older Balboa hot tub controllers, using an ESP32/ESPHome topside interface.",
   "author": "Emil-Peter Sosnowski",
