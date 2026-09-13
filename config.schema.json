@@ -1,17 +1,39 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "BalboaESP32",
   "pluginType": "platform",
   "singular": true,
   "strictValidation": false,
   "schema": {
     "type": "object",
-    "required": ["name"],
+    "required": [
+      "name",
+      "encryptionKey"
+    ],
     "additionalProperties": false,
     "properties": {
       "name": {
         "title": "Name",
         "type": "string",
-        "default": "Example Dynamic Platform"
+        "default": "Balboa ESP32"
+      },
+      "host": {
+        "title": "ESPHome Host",
+        "type": "string",
+        "default": "balboa-gs5xx.local",
+        "description": "IP address or hostname of the ESP32 running ESPHome."
+      },
+      "port": {
+        "title": "ESPHome API Port",
+        "type": "integer",
+        "default": 6053,
+        "minimum": 1,
+        "maximum": 65535
+      },
+      "encryptionKey": {
+        "title": "ESPHome Encryption Key",
+        "type": "string",
+        "format": "password",
+        "description": "The encryption key from the ESPHome api: encryption: configuration."
       }
     }
   }

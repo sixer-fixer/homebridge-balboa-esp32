@@ -9,15 +9,11 @@ import type { BalboaESP32Platform } from './platform.js';
 /**
  * Represents the current state of the spa.
  *
- * These values are mocked for now. Later, they will be populated
- * from the ESPHome native API.
+ * Temperature values are updated from the ESPHome native API.
  */
 interface SpaState {
   currentTemperature: number;
   targetTemperature: number;
-  heating: boolean;
-  jets: boolean;
-  light: boolean;
 }
 
 /**
@@ -36,16 +32,14 @@ export class BalboaSpaAccessory {
   private readonly lightService: Service;
 
   /**
-   * Mock spa state used during initial development.
+   * Spa temperature state.
    *
-   * Later this state will be updated from ESPHome.
+   * Initial values are replaced by live ESPHome sensor data
+   * after the API connection is established.
    */
   private readonly state: SpaState = {
     currentTemperature: 37.5,
     targetTemperature: 39.0,
-    heating: true,
-    jets: false,
-    light: false,
   };
 
   constructor(
@@ -108,9 +102,9 @@ export class BalboaSpaAccessory {
       );
 
     targetTemperatureCharacteristic.setProps({
-      minValue: 26,
+      minValue: 26.7,
       maxValue: 40,
-      minStep: 1,
+      minStep: 0.5,
     });
 
     targetTemperatureCharacteristic
@@ -149,15 +143,9 @@ export class BalboaSpaAccessory {
       .getCharacteristic(
         this.platform.Characteristic.CurrentHeatingCoolingState,
       )
-      .onGet(() => {
-        if (this.state.heating) {
-          return this.platform.Characteristic
-            .CurrentHeatingCoolingState.HEAT;
-        }
-
-        return this.platform.Characteristic
-          .CurrentHeatingCoolingState.OFF;
-      });
+      .onGet(() =>
+        this.platform.Characteristic.CurrentHeatingCoolingState.OFF,
+      );
 
     /**
      * JETS
@@ -182,7 +170,7 @@ export class BalboaSpaAccessory {
 
     this.jetsService
       .getCharacteristic(this.platform.Characteristic.On)
-      .onGet(() => this.state.jets)
+      .onGet(() => false)
       .onSet(this.setJets.bind(this));
 
     /**
@@ -208,8 +196,45 @@ export class BalboaSpaAccessory {
 
     this.lightService
       .getCharacteristic(this.platform.Characteristic.On)
-      .onGet(() => this.state.light)
+      .onGet(() => false)
       .onSet(this.setLight.bind(this));
+
+    this.platform.esphomeClient.on('sensor', (event) => {
+
+      if (
+        event.entity === 'Spa Measured Temp'
+        && typeof event.state === 'number'
+      ) {
+        this.state.currentTemperature = event.state;
+
+        this.thermostatService
+          .getCharacteristic(
+            this.platform.Characteristic.CurrentTemperature,
+          )
+          .updateValue(event.state);
+
+        this.platform.log.info(
+          `Spa measured temperature: ${event.state.toFixed(1)} °C`,
+        );
+      }
+
+      if (
+        event.entity === 'Spa Set Temp'
+        && typeof event.state === 'number'
+      ) {
+        this.state.targetTemperature = event.state;
+
+        this.thermostatService
+          .getCharacteristic(
+            this.platform.Characteristic.TargetTemperature,
+          )
+          .updateValue(event.state);
+
+        this.platform.log.info(
+          `Spa target temperature: ${event.state.toFixed(1)} °C`,
+        );
+      }
+    });
 
     this.platform.log.info('Hot Tub accessory initialized');
   }
@@ -217,52 +242,77 @@ export class BalboaSpaAccessory {
   /**
    * Handle a target-temperature change from HomeKit.
    *
-   * Eventually this will compare the requested temperature with the
-   * ESPHome-reported set temperature and send Warm/Cool commands.
+   * Sends the requested Celsius temperature to the ESPHome
+   * set_spa_target_temperature action.
    */
   async setTargetTemperature(value: CharacteristicValue) {
 
     const temperature = value as number;
 
-    this.state.targetTemperature = temperature;
-
     this.platform.log.info(
       'Target temperature set to:',
       temperature,
     );
+
+    this.platform.esphomeClient.executeServiceByName(
+      'set_spa_target_temperature',
+      [
+        { floatValue: temperature },
+      ],
+    );
   }
 
   /**
-   * Handle Jets commands from HomeKit.
+   * Handle a momentary Jets command from HomeKit.
    *
-   * Eventually this will trigger the ESPHome spa_pumps button.
+   * Triggers the ESPHome Spa Jets button and then resets
+   * the HomeKit switch to Off.
    */
   async setJets(value: CharacteristicValue) {
 
     const on = value as boolean;
 
-    this.state.jets = on;
+    if (!on) {
+      return;
+    }
 
-    this.platform.log.info(
-      'Jets set to:',
-      on ? 'ON' : 'OFF',
+    this.platform.log.info('Jets button pressed');
+
+    this.platform.esphomeClient.sendButtonCommand(
+      'button-spa_jets',
     );
+
+    setTimeout(() => {
+      this.jetsService
+        .getCharacteristic(this.platform.Characteristic.On)
+        .updateValue(false);
+    }, 500);
   }
 
   /**
-   * Handle Light commands from HomeKit.
+   * Handle a momentary Light command from HomeKit.
    *
-   * Eventually this will trigger the ESPHome spa_lights button.
+   * Triggers the ESPHome Spa Lights button and then resets
+   * the HomeKit switch to Off.
    */
   async setLight(value: CharacteristicValue) {
 
     const on = value as boolean;
 
-    this.state.light = on;
+    if (!on) {
+      return;
+    }
 
-    this.platform.log.info(
-      'Light set to:',
-      on ? 'ON' : 'OFF',
+    this.platform.log.info('Light button pressed');
+
+    this.platform.esphomeClient.sendButtonCommand(
+      'button-spa_lights',
     );
+
+    setTimeout(() => {
+      this.lightService
+        .getCharacteristic(this.platform.Characteristic.On)
+        .updateValue(false);
+    }, 500);
   }
 }
