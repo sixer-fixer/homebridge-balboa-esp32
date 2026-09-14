@@ -105,8 +105,8 @@ export class BalboaSpaAccessory {
 
     targetTemperatureCharacteristic.setProps({
       minValue: 26.7,
-      maxValue: 40,
-      minStep: 0.5,
+      maxValue: 40.2,
+      minStep: 0.1,
     });
 
     targetTemperatureCharacteristic

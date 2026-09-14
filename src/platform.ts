@@ -27,6 +27,7 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
   public readonly esphomeClient: EspHomeClient;
 
   private esphomeConnected = false;
+  private reconnectInProgress = false;
   public lastEspHomeActivity = Date.now();
 
   /**
@@ -50,12 +51,18 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
 
     this.esphomeClient.on('connect', (encrypted) => {
       this.esphomeConnected = true;
+      this.reconnectInProgress = false;
       this.log.info(`Connected to ESPHome device (encrypted: ${encrypted})`);
     });
 
     this.esphomeClient.on('disconnect', () => {
       this.esphomeConnected = false;
       this.log.warn('Disconnected from ESPHome device');
+      if (this.reconnectInProgress) {
+        return;
+      }
+
+      this.reconnectInProgress = true;
 
       const reconnect = () => {
         if (this.esphomeConnected) {
@@ -115,7 +122,7 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
       setInterval(() => {
         const inactivity = Date.now() - this.lastEspHomeActivity;
 
-        if (inactivity > 2 * 60 * 1000) {
+        if (this.esphomeConnected && inactivity > 2 * 60 * 1000) {
           this.log.warn(
             `No ESPHome data received for ${Math.round(inactivity / 1000)} seconds; resetting connection`,
           );
