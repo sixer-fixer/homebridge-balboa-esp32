@@ -14,6 +14,7 @@ import type { BalboaESP32Platform } from './platform.js';
 interface SpaState {
   currentTemperature: number;
   targetTemperature: number;
+  heaterOn: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export class BalboaSpaAccessory {
   private readonly state: SpaState = {
     currentTemperature: 37.5,
     targetTemperature: 39.0,
+    heaterOn: false,
   };
 
   constructor(
@@ -144,7 +146,9 @@ export class BalboaSpaAccessory {
         this.platform.Characteristic.CurrentHeatingCoolingState,
       )
       .onGet(() =>
-        this.platform.Characteristic.CurrentHeatingCoolingState.OFF,
+        this.state.heaterOn
+          ? this.platform.Characteristic.CurrentHeatingCoolingState.HEAT
+          : this.platform.Characteristic.CurrentHeatingCoolingState.OFF,
       );
 
     /**
@@ -200,6 +204,8 @@ export class BalboaSpaAccessory {
       .onSet(this.setLight.bind(this));
 
     this.platform.esphomeClient.on('sensor', (event) => {
+      this.platform.lastEspHomeActivity = Date.now();
+      this.platform.log.debug('ESPHome activity timestamp refreshed');
 
       if (
         event.entity === 'Spa Measured Temp'
@@ -232,6 +238,51 @@ export class BalboaSpaAccessory {
 
         this.platform.log.info(
           `Spa target temperature: ${event.state.toFixed(1)} °C`,
+        );
+      }
+
+      if (
+        event.entity === 'Spa Heater Status'
+        && typeof event.state === 'boolean'
+      ) {
+        this.state.heaterOn = event.state;
+
+        this.thermostatService
+          .getCharacteristic(
+            this.platform.Characteristic.CurrentHeatingCoolingState,
+          )
+          .updateValue(
+            event.state
+              ? this.platform.Characteristic.CurrentHeatingCoolingState.HEAT
+              : this.platform.Characteristic.CurrentHeatingCoolingState.OFF,
+          );
+
+        this.platform.log.info(
+          `Spa heater: ${event.state ? 'ON' : 'OFF'}`,
+        );
+      }
+    });
+
+    this.platform.esphomeClient.on('binary_sensor', (event) => {
+
+      if (event.entity === 'Spa Heater Status') {
+
+        const heaterOn = event.state === true;
+
+        this.state.heaterOn = heaterOn;
+
+        this.thermostatService
+          .getCharacteristic(
+            this.platform.Characteristic.CurrentHeatingCoolingState,
+          )
+          .updateValue(
+            heaterOn
+              ? this.platform.Characteristic.CurrentHeatingCoolingState.HEAT
+              : this.platform.Characteristic.CurrentHeatingCoolingState.OFF,
+          );
+
+        this.platform.log.info(
+          `Spa heater: ${heaterOn ? 'ON' : 'OFF'}`,
         );
       }
     });

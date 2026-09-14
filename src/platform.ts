@@ -26,6 +26,9 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
   public readonly Characteristic: typeof Characteristic;
   public readonly esphomeClient: EspHomeClient;
 
+  private esphomeConnected = false;
+  public lastEspHomeActivity = Date.now();
+
   /**
    * Accessories that Homebridge restores from its cache at startup.
    */
@@ -46,11 +49,28 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
     });
 
     this.esphomeClient.on('connect', (encrypted) => {
+      this.esphomeConnected = true;
       this.log.info(`Connected to ESPHome device (encrypted: ${encrypted})`);
     });
 
     this.esphomeClient.on('disconnect', () => {
+      this.esphomeConnected = false;
       this.log.warn('Disconnected from ESPHome device');
+
+      const reconnect = () => {
+        if (this.esphomeConnected) {
+          return;
+        }
+
+        this.log.info('Attempting to reconnect to ESPHome device...');
+        this.esphomeClient.connect();
+
+        if (!this.esphomeConnected) {
+          setTimeout(reconnect, 15000);
+        }
+      };
+
+      setTimeout(reconnect, 15000);
     });
 
     this.esphomeClient.on('deviceInfo', (info) => {
@@ -58,6 +78,8 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
     });
 
     this.esphomeClient.on('entities', (entities) => {
+      this.lastEspHomeActivity = Date.now();
+
       this.log.debug(`ESPHome discovered ${entities.length} entities`);
 
       for (const entity of entities) {
@@ -89,6 +111,18 @@ export class BalboaESP32Platform implements DynamicPlatformPlugin {
       this.log.debug('Homebridge finished launching');
       this.esphomeClient.connect();
       this.discoverSpa();
+
+      setInterval(() => {
+        const inactivity = Date.now() - this.lastEspHomeActivity;
+
+        if (inactivity > 2 * 60 * 1000) {
+          this.log.warn(
+            `No ESPHome data received for ${Math.round(inactivity / 1000)} seconds; resetting connection`,
+          );
+
+          this.esphomeClient.disconnect();
+        }
+      }, 60 * 1000);
     });
   }
 
