@@ -6,6 +6,10 @@ The plugin connects directly to the ESP32 through the ESPHome native API and exp
 
 The Balboa VL400 ESP32 project was developed from the original [Balboa-GS5xx](https://github.com/kgstorm/Balboa-GS5xx) project by Kevin Storm.
 
+<p align="center">
+  <img src="docs/homebridge-esp32-spa.jpg" alt="Apple Home Integration" width="400">
+</p>
+
 ## Dependencies
 
 This plugin requires:
@@ -13,4 +17,5 @@ This plugin requires:
 - [Homebridge](https://homebridge.io/)
 - [Balboa VL400 ESP32](https://github.com/sixer-fixer/Balboa-VL400-ESP32) running on a compatible ESP32
 - ESPHome native API enabled on the ESP32
-- `esphome-client` version 1.3.1 (installed automatically with the plugin)
+
+The required `esphome-client` dependency is installed automatically with the plugin.
