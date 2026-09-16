@@ -9,7 +9,7 @@
   "homepage": "https://github.com/sixer-fixer/homebridge-balboa-esp32#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sixer-fixer/homebridge-balboa-esp32.git"
+    "url": "git+https://github.com/sixer-fixer/homebridge-balboa-esp32.git"
   },
   "bugs": {
     "url": "https://github.com/sixer-fixer/homebridge-balboa-esp32/issues"
